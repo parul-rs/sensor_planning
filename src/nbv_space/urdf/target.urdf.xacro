@@ -1,0 +1,22 @@
+<?xml version="1.0"?>
+<robot xmlns:xacro="http://www.ros.org/wiki/xacro" name="target_satellite">
+  <link name="base_link">
+    <visual>
+      <geometry>
+        <mesh filename="model://nbv_space/meshes/SOHO_Panel_20thScale.stl" scale="0.1 0.1 0.1"/>  <!-- Adjust scale to meters -->
+      </geometry>
+      <material name="gray">
+        <color rgba="0.5 0.5 0.5 1"/>
+      </material>
+    </visual>
+    <collision>
+      <geometry>
+        <mesh filename="model://nbv_space/meshes/SOHO_Panel_20thScale.stl" scale="0.1 0.1 0.1"/>
+      </geometry>
+    </collision>
+    <inertial>
+      <mass value="100"/>  <!-- Approx mass for sim -->
+      <inertia ixx="1" ixy="0" ixz="0" iyy="1" iyz="0" izz="1"/>
+    </inertial>
+  </link>
+</robot>

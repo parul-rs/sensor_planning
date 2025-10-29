@@ -1,0 +1,101 @@
+<?xml version="1.0"?>
+<robot xmlns:xacro="http://www.ros.org/wiki/xacro" name="chaser">
+
+  <!-- ============================= -->
+  <!-- Declare required arguments -->
+  <!-- ============================= -->
+  <xacro:arg name="name" default="chaser"/>
+  <xacro:arg name="sim_gazebo" default="true"/>
+
+  <!-- ============================= -->
+  <!-- Chaser base: simple box -->
+  <!-- ============================= -->
+  <link name="chaser_base">
+    <visual>
+      <geometry>
+        <box size="1 1 0.5"/>
+      </geometry>
+      <material name="blue">
+        <color rgba="0 0 1 1"/>
+      </material>
+    </visual>
+    <collision>
+      <geometry>
+        <box size="1 1 0.5"/>
+      </geometry>
+    </collision>
+    <inertial>
+      <mass value="500"/>
+      <inertia ixx="10" ixy="0" ixz="0" iyy="10" iyz="0" izz="10"/>
+    </inertial>
+  </link>
+
+  <!-- ============================= -->
+  <!-- Base link fixed in world -->
+  <!-- ============================= -->
+  <link name="world"/>
+  <joint name="base_to_world" type="fixed">
+    <origin xyz="0 0 0" rpy="0 0 0"/>
+    <parent link="world"/>
+    <child link="chaser_base"/>
+  </joint>
+
+  <!-- ============================= -->
+  <!-- Camera on top of chaser base -->
+  <!-- ============================= -->
+  <link name="camera_link">
+    <visual>
+      <geometry>
+        <box size="0.1 0.1 0.05"/>
+      </geometry>
+      <material name="red">
+        <color rgba="1 0 0 1"/>
+      </material>
+    </visual>
+    <collision>
+      <geometry>
+        <box size="0.1 0.1 0.05"/>
+      </geometry>
+    </collision>
+  </link>
+
+  <joint name="camera_to_base" type="fixed">
+    <origin xyz="0 0 0.3" rpy="0 0 0"/>
+    <parent link="chaser_base"/>
+    <child link="camera_link"/>
+  </joint>
+
+  <!-- ============================= -->
+  <!-- Gazebo camera plugin -->
+  <!-- ============================= -->
+  <gazebo reference="camera_link">
+    <sensor type="depth" name="rgbd_camera">
+      <update_rate>30.0</update_rate>
+      <camera name="camera1">
+        <horizontal_fov>1.047198</horizontal_fov> <!-- 60 deg -->
+        <image>
+          <format>R8G8B8</format>
+          <width>640</width>
+          <height>480</height>
+        </image>
+        <clip>
+          <near>0.05</near>
+          <far>50</far>
+        </clip>
+      </camera>
+      <plugin name="rgbd_camera_plugin" filename="libgazebo_ros_camera.so">
+        <ros>
+          <namespace>/camera1</namespace>
+          <node_name>rgbd_camera_node</node_name> <!-- ADD THIS -->
+          <remapping>~/image_raw:=image_raw</remapping>
+          <remapping>~/camera_info:=camera_info</remapping>
+          <remapping>~/depth/image_raw:=depth/image_raw</remapping>
+          <remapping>~/points:=points</remapping>
+        </ros>
+        <frame_name>camera_link</frame_name>
+      </plugin>
+    </sensor>
+  </gazebo>
+
+</robot>
+

@@ -1,0 +1,93 @@
+<?xml version="1.0"?>
+<robot xmlns:xacro="http://www.ros.org/wiki/xacro" name="soho_preview">
+
+  <!-- Invisible base link -->
+  <link name="base_link">
+    <visual>
+      <origin xyz="0 0 0"/>
+      <geometry><box size="0.001 0.001 0.001"/></geometry>
+      <material name="invisible">
+        <color rgba="0 0 0 0"/>
+      </material>
+    </visual>
+    <inertial>
+      <mass value="0.01"/>
+      <inertia ixx="1e-6" ixy="0" ixz="0" iyy="1e-6" iyz="0" izz="1e-6"/>
+    </inertial>
+  </link>
+
+  <!-- Body 1 (upper body) -->
+  <link name="body1">
+    <visual>
+      <origin xyz="-21.0 -22.9 -12.7" rpy="0 0 0"/>
+      <geometry>
+        <mesh filename="model://nbv_space/meshes/SOHO_Body1_20thScale.stl" scale="0.1 0.1 0.1"/>
+      </geometry>
+      <material name="orange"><color rgba="0.9 0.5 0.2 1"/></material>
+    </visual>
+    <inertial>
+      <mass value="1.0"/>
+      <inertia ixx="1e-3" ixy="0" ixz="0" iyy="1e-3" iyz="0" izz="1e-3"/>
+    </inertial>
+  </link>
+
+  <!-- Joint: base_link → body1 -->
+  <joint name="joint_base_to_body1" type="revolute">
+    <parent link="base_link"/>
+    <child link="body1"/>
+    <origin xyz="0 0 0" rpy="0 0 0"/>
+    <axis xyz="0 0 1"/>
+    <limit lower="0" upper="0" effort="0" velocity="0"/>
+  </joint>
+
+  <!-- Body 2 (lower body, flipped upside down) -->
+  <link name="body2">
+    <visual>
+      <!-- flipped 180° about x -->
+      <origin xyz="-25.0 -50.0 -15.0" rpy="3.1416 0 0"/>
+      <geometry>
+        <mesh filename="model://nbv_space/meshes/SOHO_Body2_20thScale.stl" scale="0.1 0.1 0.1"/>
+      </geometry>
+      <material name="blue"><color rgba="0.2 0.6 0.9 1"/></material>
+    </visual>
+    <inertial>
+      <mass value="1.0"/>
+      <inertia ixx="1e-3" ixy="0" ixz="0" iyy="1e-3" iyz="0" izz="1e-3"/>
+    </inertial>
+  </link>
+
+  <!-- Joint: body1 → body2 (stacked, z-aligned, faces touching) -->
+  <joint name="joint_body1_to_body2" type="revolute">
+    <parent link="body1"/>
+    <child link="body2"/>
+    <!-- Assuming each body is about 3 units tall in your mesh scale -->
+    <origin xyz="0 0 -3.0" rpy="0 0 0"/>
+    <axis xyz="0 0 1"/>
+    <limit lower="0" upper="0" effort="0" velocity="0"/>
+  </joint>
+
+  <!-- Panel (on top of body1) -->
+  <link name="panel">
+    <visual>
+      <origin xyz="0 0 0" rpy="0 0 0"/>
+      <geometry>
+        <mesh filename="model://nbv_space/meshes/SOHO_Panel_20thScale.stl" scale="0.1 0.1 0.1"/>
+      </geometry>
+      <material name="green"><color rgba="0.3 0.9 0.3 1"/></material>
+    </visual>
+    <inertial>
+      <mass value="0.5"/>
+      <inertia ixx="5e-4" ixy="0" ixz="0" iyy="5e-4" iyz="0" izz="5e-4"/>
+    </inertial>
+  </link>
+
+  <!-- Joint: body1 → panel (on top) -->
+  <joint name="joint_body1_to_panel" type="revolute">
+    <parent link="body1"/>
+    <child link="panel"/>
+    <origin xyz="0 0 3.0" rpy="0 0 0"/>
+    <axis xyz="0 0 1"/>
+    <limit lower="0" upper="0" effort="0" velocity="0"/>
+  </joint>
+
+</robot>
