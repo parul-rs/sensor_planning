@@ -41,6 +41,8 @@ def generate_launch_description():
                 'gazebo', '--verbose',
                 '-s', 'libgazebo_ros_init.so',
                 '-s', 'libgazebo_ros_factory.so',
+                # '-s', 'libgazebo_ros_state.so',
+                # '-s', "libgazebo_ros_api_plugin.so",
                 PathJoinSubstitution([
                     pkg_share,
                     'worlds',
