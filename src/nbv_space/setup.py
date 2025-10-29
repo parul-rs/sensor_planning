@@ -29,7 +29,7 @@ setup(
     tests_require=['pytest'],
     entry_points={
         'console_scripts': [
-            'target_dynamics = target_dynamics:main',
+            'target_dynamics.py = nbv_space.target_dynamics:main',
         ],
     },
 )

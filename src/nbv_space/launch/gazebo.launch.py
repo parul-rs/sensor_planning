@@ -60,6 +60,19 @@ def generate_launch_description():
             output='screen'
         ),
 
+        Node(
+            package='nbv_space',
+            executable='target_dynamics.py',
+            name='target_dynamics',
+            output='screen',
+            parameters=[{
+                'name': 'target',
+                'omega': [0.0, 0.0, 0.1],
+                'radius': 2.0,
+                'orbital_rate': 0.2
+            }]
+        ),
+
         # Chaser state publisher
         Node(
             package='robot_state_publisher',

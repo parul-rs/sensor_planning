@@ -12,7 +12,7 @@ class TargetDynamics(Node):
 
         # Connect to Gazebo service
         self.client = self.create_client(SetEntityState, '/gazebo/set_entity_state')
-        while not self.client.wait_for_service(timeout_sec=1.0):
+        while not self.client.wait_for_service(timeout_sec=3.0):
             self.get_logger().info('Waiting for /gazebo/set_entity_state...')
 
         # Simulation parameters
