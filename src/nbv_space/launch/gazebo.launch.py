@@ -62,17 +62,51 @@ def generate_launch_description():
             output='screen'
         ),
 
+        # Node(
+        #     package='nbv_space',
+        #     executable='target_dynamics.py',
+        #     name='target_dynamics',
+        #     output='screen',
+        #     parameters=[{
+        #         'name': 'target',
+        #         'omega': [0.0, 0.0, 0.1],
+        #         'radius': 2.0,
+        #         'orbital_rate': 0.2
+        #     }]
+        # ),
+
         Node(
             package='nbv_space',
-            executable='target_dynamics.py',
-            name='target_dynamics',
+            executable='target_euler_dynamics.py',
+            name='target_euler_dynamics',
             output='screen',
             parameters=[{
                 'name': 'target',
-                'omega': [0.0, 0.0, 0.1],
-                'radius': 2.0,
-                'orbital_rate': 0.2
-            }]
+                'I': [1.0, 1.0, 1.0],
+                'omega0': [0.0, 0.0, 0.1],
+                'q0': [0.0, 0.0, 0.0, 1.0],
+                'dt': 0.02,
+                'orbital_radius': 2.0,
+                'orbital_rate': 0.2,
+                'z': 4.0,
+            }],
+        ),
+
+        Node(
+            package='nbv_space',
+            executable='chaser_hcw_dynamics.py',
+            name='chaser_hcw_dynamics',
+            output='screen',
+            parameters=[{
+                'n': 0.2,
+                'dt': 0.02,
+                'x0': 0.5,
+                'y0': 0.0,
+                'z0': 0.0,
+                'xdot0': 0.0,
+                'ydot0': 0.0,
+                'zdot0': 0.0,
+            }],
         ),
 
         # Chaser state publisher

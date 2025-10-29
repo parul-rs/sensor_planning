@@ -30,6 +30,8 @@ setup(
     entry_points={
         'console_scripts': [
             'target_dynamics.py = nbv_space.target_dynamics:main',
+            'target_euler_dynamics.py = nbv_space.target_euler_dynamics:main',
+            'chaser_hcw_dynamics.py = nbv_space.chaser_hcw_dynamics:main',
         ],
     },
 )
