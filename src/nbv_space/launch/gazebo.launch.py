@@ -56,6 +56,7 @@ def generate_launch_description():
             executable='robot_state_publisher',
             name='target_state_publisher',
             parameters=[{'robot_description': target_urdf}],
+            remappings=[('robot_description', 'target_description')],
             output='screen'
         ),
 
@@ -65,6 +66,7 @@ def generate_launch_description():
             executable='robot_state_publisher',
             name='chaser_state_publisher',
             parameters=[{'robot_description': chaser_urdf}],
+            remappings=[('robot_description', 'chaser_description')],
             output='screen'
         ),
 
@@ -87,7 +89,7 @@ def generate_launch_description():
                     executable='spawn_entity.py',
                     arguments=[
                         '-entity', 'target',
-                        '-topic', 'robot_description',
+                        '-topic', 'target_description',
                         '-x', '0', '-y', '0', '-z', '4'
                     ],
                     output='screen'
@@ -101,7 +103,7 @@ def generate_launch_description():
             executable='spawn_entity.py',
             arguments=[
                 '-entity', 'chaser',
-                '-topic', 'robot_description',
+                '-topic', 'chaser_description',
                 '-x', '0', '-y', '0', '-z', '0'
             ],
             output='screen'
