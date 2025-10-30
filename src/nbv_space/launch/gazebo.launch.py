@@ -86,7 +86,7 @@ def generate_launch_description():
                 'omega0': [0.0, 0.0, 0.1],
                 'q0': [0.0, 0.0, 0.0, 1.0],
                 'dt': 0.02,
-                'orbital_radius': 2.0,
+                'orbital_radius': 50.0,
                 'orbital_rate': 0.2,
                 'z': 4.0,
             }],

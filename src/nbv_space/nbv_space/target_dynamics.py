@@ -22,7 +22,7 @@ class TargetDynamics(Node):
         # Parameters
         self.declare_parameter('name', 'target')
         self.declare_parameter('omega', [0.0, 0.0, 0.1])
-        self.declare_parameter('radius', 2.0)
+        self.declare_parameter('radius', 50.0)
         self.declare_parameter('orbital_rate', 0.2)
         self.declare_parameter('dt', 0.05)
 

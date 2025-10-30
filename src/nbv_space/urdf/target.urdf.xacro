@@ -1,22 +1,84 @@
 <?xml version="1.0"?>
-<robot xmlns:xacro="http://www.ros.org/wiki/xacro" name="target_satellite">
-  <link name="base_link">
+<robot name="satellite" xmlns:xacro="http://www.ros.org/wiki/xacro">
+
+  <xacro:property name="scale" value="1.5"/>
+  <xacro:property name="mesh_scale" value="${0.02 * scale} ${0.02 * scale} ${0.02 * scale}"/>
+
+  <link name="body_link_1">
+    <inertial>
+      <mass value="10.0"/>
+      <inertia ixx="0" ixy="0" ixz="0" iyy="0" iyz="0" izz="0"/>
+    </inertial>
     <visual>
+      <origin xyz="${-4.25 * scale} ${-4.6 * scale} ${-1.945 * scale}"/>
       <geometry>
-        <mesh filename="model://nbv_space/meshes/SOHO_Panel_20thScale.stl" scale="0.1 0.1 0.1"/>  <!-- Adjust scale to meters -->
+        <mesh filename="model://nbv_space/meshes/SOHO_Body1_20thScale.stl" scale="${mesh_scale}"/>
       </geometry>
-      <material name="gray">
-        <color rgba="0.5 0.5 0.5 1"/>
+      <material name="white">
+        <color rgba="1 1 1 1"/>
       </material>
     </visual>
     <collision>
+      <origin xyz="${-4.25 * scale} ${-4.6 * scale} ${-1.945 * scale}"/>
       <geometry>
-        <mesh filename="model://nbv_space/meshes/SOHO_Panel_20thScale.stl" scale="0.1 0.1 0.1"/>
+        <mesh filename="model://nbv_space/meshes/SOHO_Body1_20thScale.stl" scale="${mesh_scale}"/>
       </geometry>
     </collision>
+  </link>
+
+  <joint name="joint1" type="fixed">
+    <parent link="body_link_1"/>
+    <child link="body_link_2"/>
+    <origin xyz="0 0 ${1.275 * scale}"/>
+  </joint>
+
+  <link name="body_link_2">
     <inertial>
-      <mass value="100"/>  <!-- Approx mass for sim -->
-      <inertia ixx="1" ixy="0" ixz="0" iyy="1" iyz="0" izz="1"/>
+      <mass value="10.0"/>
+      <inertia ixx="0" ixy="0" ixz="0" iyy="0" iyz="0" izz="0"/>
     </inertial>
+    <visual>
+      <origin xyz="${-3.94 * scale} ${-4.13 * scale} ${-2.095 * scale}"/>
+      <geometry>
+        <mesh filename="model://nbv_space/meshes/SOHO_Body2_20thScale.stl" scale="${mesh_scale}"/>
+      </geometry>
+      <material name="white">
+        <color rgba="1 1 1 1"/>
+      </material>
+    </visual>
+    <collision>
+      <origin xyz="${-3.94 * scale} ${-4.13 * scale} ${-2.095 * scale}"/>
+      <geometry>
+        <mesh filename="model://nbv_space/meshes/SOHO_Body2_20thScale.stl" scale="${mesh_scale}"/>
+      </geometry>
+    </collision>
+  </link>
+
+  <joint name="joint_2" type="fixed">
+    <parent link="body_link_1"/>
+    <child link="panel_link"/>
+    <origin xyz="${0.01 * scale} ${-0.02 * scale} ${0.01 * scale}" rpy="0 3.14 0"/>
+  </joint>
+
+  <link name="panel_link">
+    <inertial>
+      <mass value="2.0"/>
+      <inertia ixx="0" ixy="0" ixz="0" iyy="0" iyz="0" izz="0"/>
+    </inertial>
+    <visual>
+      <origin xyz="${0.01 * scale} 0 ${-1 * scale}"/>
+      <geometry>
+        <mesh filename="model://nbv_space/meshes/SOHO_Panel_20thScale.stl" scale="${mesh_scale}"/>
+      </geometry>
+      <material name="white">
+        <color rgba="1 1 1 1"/>
+      </material>
+    </visual>
+    <collision>
+      <origin xyz="${0.01 * scale} 0 ${-1 * scale}"/>
+      <geometry>
+        <mesh filename="model://nbv_space/meshes/SOHO_Panel_20thScale.stl" scale="${mesh_scale}"/>
+      </geometry>
+    </collision>
   </link>
 </robot>

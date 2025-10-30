@@ -6,6 +6,11 @@ from gazebo_msgs.srv import SetEntityState
 from gazebo_msgs.msg import EntityState
 from geometry_msgs.msg import Pose, Twist, Vector3, Quaternion, Point
 
+# notes from pete 
+# lower earth orbit - 800 km 
+# hcw - good for a 15 minute - for longer, we woudl propagate the full two body problem , 
+# dont need to do the three body problem unless we'll be in a cislunar region 
+
 def quat_mul(q1, q2):
     x1,y1,z1,w1 = q1
     x2,y2,z2,w2 = q2
@@ -23,7 +28,6 @@ class TargetEulerDynamics(Node):
     def __init__(self):
         super().__init__('target_euler_dynamics')
 
-        # ✅ Correct service name
         self.client = self.create_client(SetEntityState, '/set_entity_state')
         while not self.client.wait_for_service(timeout_sec=1.0):
             self.get_logger().info('Waiting for /set_entity_state...')
