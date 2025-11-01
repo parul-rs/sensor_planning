@@ -82,8 +82,8 @@ def generate_launch_description():
             output='screen',
             parameters=[{
                 'name': 'target',
-                'I': [1.0, 1.0, 1.0],
-                'omega0': [0.0, 0.0, 0.1],
+                'I': [1.0, 0.5, 0.3],  # Unequal moments for tumbling
+                'omega0': [0.02, 0.02, 0.2],  # Small off-axis components for slow tumble
                 'q0': [0.0, 0.0, 0.0, 1.0],
                 'dt': 0.02,
                 'orbital_radius': 50.0,
@@ -104,7 +104,7 @@ def generate_launch_description():
                 'y0': 0.0,
                 'z0': 0.0,
                 'xdot0': 0.0,
-                'ydot0': 0.0,
+                'ydot0': -0.2,
                 'zdot0': 0.0,
             }],
         ),
