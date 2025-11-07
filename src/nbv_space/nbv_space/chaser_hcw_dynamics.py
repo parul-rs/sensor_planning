@@ -43,11 +43,8 @@ class ChaserHCWDynamics(Node):
         self.t = 0.0    # HCW time (starts when target is seen)
         self.first_update = True
 
-        # create state subscription
         self.model_sub = self.create_subscription(
             ModelStates, '/model_states', self.model_cb, 10)
-
-        # timer will be created inside model_cb the first time we see the target
 
     # /model_states callback 
     def model_cb(self, msg: ModelStates):
@@ -56,7 +53,6 @@ class ChaserHCWDynamics(Node):
             pose  = msg.pose[idx]
             twist = msg.twist[idx]
         except ValueError:
-            # target not yet in the list
             return
 
         # initialize timer the first time we see the target 
@@ -65,10 +61,7 @@ class ChaserHCWDynamics(Node):
             self.target_pose  = pose
             self.target_twist = twist
 
-            # send initial state so Gazebo knows the chaser exists
             self.send_initial_state()
-
-            # now create the periodic timer
             self.timer = self.create_timer(self.dt, self.step)
             return
 
@@ -92,21 +85,28 @@ class ChaserHCWDynamics(Node):
 
         h_vec = np.cross(r_vec, target_vel)
         h_norm = np.linalg.norm(h_vec)
-        unit_h = h_vec / h_norm if h_norm > 1e-6 else np.array([0.0,0.0,1.0])
+        if h_norm < 1e-6:
+            unit_h = np.array([0.0, 0.0, 1.0])
+            omega_vec = self.n * unit_h
+        else:
+            unit_h = h_vec / h_norm
+            omega_vec = h_vec / (R**2)
 
-        unit_theta = np.cross(unit_h, unit_r)  # guarantees orthonormal triad
+        unit_theta = np.cross(unit_h, unit_r)
 
-
-        # desired relative offset in lvlh 
+        # relative offsets
         rel_pos_lvlh = np.array([self.x0, self.y0, self.z0])
-        offset_pos   = (rel_pos_lvlh[0] * unit_r +
-                        rel_pos_lvlh[1] * unit_theta +
-                        rel_pos_lvlh[2] * unit_h)
-
         rel_vel_lvlh = np.array([self.xdot0, self.ydot0, self.zdot0])
-        offset_vel   = (rel_vel_lvlh[0] * unit_r +
-                        rel_vel_lvlh[1] * unit_theta +
-                        rel_vel_lvlh[2] * unit_h)
+
+        offset_pos = (rel_pos_lvlh[0] * unit_r +
+                      rel_pos_lvlh[1] * unit_theta +
+                      rel_pos_lvlh[2] * unit_h)
+        offset_vel = (rel_vel_lvlh[0] * unit_r +
+                      rel_vel_lvlh[1] * unit_theta +
+                      rel_vel_lvlh[2] * unit_h)
+        
+        # include rotating-frame contribution
+        offset_vel += np.cross(omega_vec, offset_pos)
 
         chaser_pos = target_pos + offset_pos
         chaser_vel = target_vel + offset_vel
@@ -115,7 +115,6 @@ class ChaserHCWDynamics(Node):
         self.init_rel_vel = rel_vel_lvlh.copy()
         self.t = 0.0
 
-        # build entityState to send 
         pose_msg = Pose()
         pose_msg.position = Point(x=chaser_pos[0], y=chaser_pos[1], z=chaser_pos[2])
         pose_msg.orientation = Quaternion(w=1.0)
@@ -142,22 +141,20 @@ class ChaserHCWDynamics(Node):
         x0, y0, z0 = self.init_rel_pos
         xdot0, ydot0, zdot0 = self.init_rel_vel
 
-        # HCW soln in rel coords 
         c = np.cos(self.n * self.t)
         s = np.sin(self.n * self.t)
 
+        # HCW relative position/velocity in LVLH
         x = (4 - 3*c)*x0 + (s/self.n)*xdot0 + (2/self.n)*(1-c)*ydot0
         y = 6*(s - self.n*self.t)*x0 + y0 \
             - (2/self.n)*(1-c)*xdot0 \
             + (1/self.n)*(4*s - 3*self.n*self.t)*ydot0
         z = z0*c + (zdot0/self.n)*s
 
-        # relative velocities (derivatives)
         xd = 3*self.n*s*x0 + c*xdot0 + 2*s*ydot0
         yd = 6*self.n*(c-1)*x0 - 2*s*xdot0 + (4*c - 3)*ydot0
         zd = -z0*self.n*s + zdot0*c
 
-        # current target state
         tp = np.array([self.target_pose.position.x,
                        self.target_pose.position.y,
                        self.target_pose.position.z])
@@ -165,7 +162,7 @@ class ChaserHCWDynamics(Node):
                        self.target_twist.linear.y,
                        self.target_twist.linear.z])
 
-        # lvlh basis at this instant 
+        # LVLH basis at current target pose
         r_vec = tp.copy()
         R = np.linalg.norm(r_vec)
         if R < 1e-9:
@@ -176,15 +173,15 @@ class ChaserHCWDynamics(Node):
         h_vec = np.cross(r_vec, tv)
         h_norm = np.linalg.norm(h_vec)
         if h_norm < 1e-6:
-            # fallback: choose +Z as orbit normal if cross is degenerate
-            self.get_logger().warn("h_vec nearly zero; using fallback unit_h")
             unit_h = np.array([0.0, 0.0, 1.0])
+            omega_vec = self.n * unit_h
         else:
             unit_h = h_vec / h_norm
+            omega_vec = h_vec / (R**2)
 
-        unit_theta = np.cross(unit_h, unit_r)  # ensures orthonormal triad
+        unit_theta = np.cross(unit_h, unit_r)
 
-        # tansform relative to world 
+        # transform relative to world
         rel_pos = np.array([x, y, z])
         rel_vel = np.array([xd, yd, zd])
 
@@ -194,20 +191,28 @@ class ChaserHCWDynamics(Node):
         world_vel_offset = (rel_vel[0] * unit_r +
                             rel_vel[1] * unit_theta +
                             rel_vel[2] * unit_h)
+        
+        # include rotation of LVLH frame
+        world_vel_offset += np.cross(omega_vec, world_pos_offset)
 
         chaser_pos = tp + world_pos_offset
         chaser_vel = tv + world_vel_offset
 
+        # Safety clamp so chaser doesn't collide with target 
         sep = np.linalg.norm(chaser_pos - tp)
-        safety_radius = 0.5  # meters
+        safety_radius = 0.1 # meters 
         if sep < safety_radius:
-            self.get_logger().warn(f"Chaser would teleport inside safety radius ({sep:.3f} m). Clamping to safe offset.")
-            # clamp along unit_r direction to safety radius
-            chaser_pos = tp + (world_pos_offset / np.linalg.norm(world_pos_offset)) * max(safety_radius, 1e-3)
-            chaser_vel = tv # make them go the same speed too for good measure idk
+            self.get_logger().warn(f"Chaser inside safety radius ({sep:.3f} m). Clamping.")
+            dir_offset = world_pos_offset / (np.linalg.norm(world_pos_offset) + 1e-9)
+            world_pos_offset = dir_offset * max(safety_radius, 1e-3)
+            # recompute consistent velocity
+            world_vel_offset = (rel_vel[0] * unit_r +
+                                rel_vel[1] * unit_theta +
+                                rel_vel[2] * unit_h) + np.cross(omega_vec, world_pos_offset)
+            chaser_pos = tp + world_pos_offset
+            chaser_vel = tv + world_vel_offset
 
-
-        # send new state to Gazebo for simulation
+        # send new state
         pose_msg = Pose()
         pose_msg.position = Point(x=chaser_pos[0], y=chaser_pos[1], z=chaser_pos[2])
         pose_msg.orientation = Quaternion(w=1.0)
@@ -225,12 +230,10 @@ class ChaserHCWDynamics(Node):
         req.state = state
         self.client.call_async(req)
 
-        # print chaser absolute position
         self.get_logger().info(
             f"[chaser] t={self.t:6.2f}s  abs=({chaser_pos[0]:7.3f}, {chaser_pos[1]:7.3f}, {chaser_pos[2]:7.3f})"
         )
 
-        # time update 
         self.t += self.dt
         if self.first_update:
             self.first_update = False

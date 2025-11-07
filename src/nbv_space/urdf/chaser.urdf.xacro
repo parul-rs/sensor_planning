@@ -30,6 +30,10 @@
     </inertial>
   </link>
 
+  <gazebo reference="chaser_base">
+    <kinematic>true</kinematic>
+  </gazebo>
+
   <!-- ============================= -->
   <!-- Base link fixed in world -->
   <!-- ============================= -->

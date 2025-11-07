@@ -26,6 +26,10 @@
     </collision>
   </link>
 
+  <gazebo reference="body_link_1">
+    <kinematic>true</kinematic>
+  </gazebo>
+
   <joint name="joint1" type="fixed">
     <parent link="body_link_1"/>
     <child link="body_link_2"/>
