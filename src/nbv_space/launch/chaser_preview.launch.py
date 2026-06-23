@@ -22,43 +22,71 @@ def generate_launch_description():
         output='screen'
     )
 
+    gazebo = ExecuteProcess(
+        cmd=[
+            'gazebo', '--verbose',
+            '-s', 'libgazebo_ros_init.so',
+            '-s', 'libgazebo_ros_factory.so',
+            PathJoinSubstitution([
+                pkg_share,
+                'worlds',
+                'empty_no_floor.world'
+            ])
+        ],
+        output='screen'
+    )
+
+    # Chaser UR arm controller stuff
+    ur_pkg = FindPackageShare('ur_simulation_gazebo')
+
+    ur_controller_config = PathJoinSubstitution([
+        ur_pkg,
+        'config',
+        'ur_controllers.yaml'
+    ])
+
+    ros2_control_node = Node(
+        package='controller_manager',
+        executable='ros2_control_node',
+        parameters=[
+            {'robot_description': fullchaser_urdf},
+            ur_controller_config
+        ],
+        output='screen'
+    )
+
+    # spawners (spawn joint_state_broadcaster and trajectory controller)
+    joint_state_broadcaster_spawner = Node(
+        package='controller_manager',
+        executable='spawner',
+        arguments=['joint_state_broadcaster', '--controller-manager', '/controller_manager'],
+        output='screen'
+    )
+
+    trajectory_controller_spawner = Node(
+        package='controller_manager',
+        executable='spawner',
+        arguments=['joint_trajectory_controller', '--controller-manager', '/controller_manager'],
+        output='screen'
+    )
+
     return LaunchDescription([
-            # Gazebo
-            ExecuteProcess(
-                cmd=['gazebo', '--verbose', '-s', 'libgazebo_ros_init.so', '-s', 'libgazebo_ros_factory.so'],
-                output='screen'
-            ),
-
+            gazebo,
             robot_state_publisher,
-
-            # State publisher
-            Node(
-                package='robot_state_publisher',
-                executable='robot_state_publisher',
-                name='chaser_state_publisher',
-                parameters=[{'robot_description': fullchaser_urdf}],
-                remappings=[('robot_description', 'chaser_description')],
-                output='screen'
-            ),
-
-            # Joint state publisher GUI
-            Node(
-                package='joint_state_publisher_gui',
-                executable='joint_state_publisher_gui',
-                name='joint_state_publisher_gui',
-                output='screen'
-            ),
 
             # Spawn urdf in Gazebo
             Node(
                 package='gazebo_ros',
                 executable='spawn_entity.py',
                 arguments=[
-                    '-entity', 'target_satellite',
+                    '-entity', 'chase_spacecraft',
                     '-topic', 'robot_description',
                     '-x', '0', '-y', '0', '-z', '10'
                 ],
                 output='screen'
             ),
+            ros2_control_node,
+            joint_state_broadcaster_spawner, 
+            trajectory_controller_spawner,
         ])
 

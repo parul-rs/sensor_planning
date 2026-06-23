@@ -1,10 +1,18 @@
 #!/usr/bin/env python3
+"""
+Target tumbling + orbital dynamics — Gz Harmonic version.
+ 
+Pose is pushed each timestep via the gz-transport
+/world/<world>/set_pose service (replaces gazebo_msgs SetEntityState).
+ 
+Packages required:
+  python3-gz-transport13
+  python3-gz-msgs10
+"""
 import rclpy
 from rclpy.node import Node
 import numpy as np
-from gazebo_msgs.srv import SetEntityState
-from gazebo_msgs.msg import EntityState
-from geometry_msgs.msg import Pose, Twist, Vector3, Quaternion, Point
+from geometry_msgs.msg import Twist, Vector3, Quaternion, Point, Pose
 
 # notes from pete 
 # lower earth orbit - 800 km 
@@ -28,19 +36,20 @@ class TargetEulerDynamics(Node):
     def __init__(self):
         super().__init__('target_euler_dynamics')
 
-        self.client = self.create_client(SetEntityState, '/set_entity_state')
-        while not self.client.wait_for_service(timeout_sec=1.0):
-            self.get_logger().info('Waiting for /set_entity_state...')
-        self.get_logger().info('/set_entity_state READY')
+        # self.client = self.create_client(SetEntityState, '/set_entity_state')
+        # while not self.client.wait_for_service(timeout_sec=1.0):
+        #     self.get_logger().info('Waiting for /set_entity_state...')
+        # self.get_logger().info('/set_entity_state READY')
 
         self.declare_parameter('name', 'target')
         self.declare_parameter('I', [1.0, 1.0, 1.0])
         self.declare_parameter('omega0', [0.0, 0.0, 0.1])
         self.declare_parameter('q0', [0.0, 0.0, 0.0, 1.0])
-        self.declare_parameter('dt', 0.02)
+        self.declare_parameter('dt', 0.08)
         self.declare_parameter('orbital_radius', 2.0)
         self.declare_parameter('orbital_rate', 0.2)
         self.declare_parameter('z', 4.0)
+        self.declare_parameter('world_name', 'empty_no_floor')
 
         self.entity_name = self.get_parameter('name').value
         Idiag = np.array(self.get_parameter('I').value, dtype=float)
@@ -53,11 +62,50 @@ class TargetEulerDynamics(Node):
         self.R = float(self.get_parameter('orbital_radius').value)
         self.n = float(self.get_parameter('orbital_rate').value)
         self.z = float(self.get_parameter('z').value)
+        self.world = self.get_parameter('world_name').value 
         self.t = 0.0
 
+        self.service_name = f'/world/{self.world}/set_pose'
+
+        self.pose_pub = self.create_publisher(Pose, '/target_pose_cmd', 1)
+
         self.timer = self.create_timer(self.dt, self.step)
+        self.get_logger().info(
+            f'TargetEulerDynamics ready, pushing poses to "{self.entity_name}" '
+            f'via `gz service -s {self.service_name}`'
+        )
+
+    # def _set_gz_pose(self, name: str, pos, quat) -> bool:
+    #     """Call `gz service .../set_pose` via subprocess. A failed call is
+    #     logged but doesn't crash the node, the entity just holds its last
+    #     pose until the next successful call."""
+    #     req = (
+    #         f'name: "{name}", '
+    #         f'position: {{x: {pos[0]}, y: {pos[1]}, z: {pos[2]}}}, '
+    #         f'orientation: {{x: {quat[0]}, y: {quat[1]}, z: {quat[2]}, w: {quat[3]}}}'
+    #     )
+    #     cmd = [
+    #         'gz', 'service', '-s', self.service_name,
+    #         '--reqtype', 'gz.msgs.Pose',
+    #         '--reptype', 'gz.msgs.Boolean',
+    #         '--timeout', str(self.gz_timeout_ms),
+    #         '--req', req,
+    #     ]
+    #     try:
+    #         result = subprocess.run(
+    #             cmd, capture_output=True, text=True,
+    #             timeout=(self.gz_timeout_ms / 1000.0) + 0.1
+    #         )
+    #         if result.returncode != 0:
+    #             self.get_logger().warn(f'gz service call failed: {result.stderr.strip()}')
+    #             return False
+    #         return True
+    #     except subprocess.TimeoutExpired:
+    #         self.get_logger().warn('gz service call timed out')
+    #         return False
 
     def step(self):
+        # attitude 
         tau = np.zeros(3)
         omega_cross = np.cross(self.omega, self.I @ self.omega)
         omega_dot = self.Iinv @ (-omega_cross + tau)
@@ -69,6 +117,7 @@ class TargetEulerDynamics(Node):
         q_dot = 0.5 * quat_mul(self.q, omega_quat)
         self.q = quat_normalize(self.q + self.dt * q_dot)
 
+        # orbit (circular and in-plane)
         self.t += self.dt
         x = self.R * np.cos(self.n * self.t)
         y = self.R * np.sin(self.n * self.t)
@@ -76,23 +125,31 @@ class TargetEulerDynamics(Node):
         vx = -self.R * self.n * np.sin(self.n * self.t)
         vy =  self.R * self.n * np.cos(self.n * self.t)
 
-        pose = Pose()
-        pose.position = Point(x=x, y=y, z=z)
-        pose.orientation = Quaternion(x=self.q[0], y=self.q[1], z=self.q[2], w=self.q[3])
+        # pose = Pose()
+        # pose.position = Point(x=x, y=y, z=z)
+        # pose.orientation = Quaternion(x=self.q[0], y=self.q[1], z=self.q[2], w=self.q[3])
+
+        # self._set_gz_pose(self.entity_name, [x, y, z], self.q)
+
+        msg = Pose()
+        msg.position.x, msg.position.y, msg.position.z = float(x), float(y), float(z)
+        msg.orientation.x, msg.orientation.y = float(self.q[0]), float(self.q[1])
+        msg.orientation.z, msg.orientation.w = float(self.q[2]), float(self.q[3])
+        self.pose_pub.publish(msg)
 
         twist = Twist()
         twist.linear = Vector3(x=vx, y=vy, z=0.0)
         twist.angular = Vector3(x=self.omega[0], y=self.omega[1], z=self.omega[2])
 
-        state = EntityState()
-        state.name = self.entity_name
-        state.pose = pose
-        state.twist = twist
-        state.reference_frame = 'world'
+        # state = EntityState()
+        # state.name = self.entity_name
+        # state.pose = pose
+        # state.twist = twist
+        # state.reference_frame = 'world'
 
-        req = SetEntityState.Request()
-        req.state = state
-        self.client.call_async(req)
+        # req = SetEntityState.Request()
+        # req.state = state
+        # self.client.call_async(req)
 
 def main(args=None):
     rclpy.init(args=args)

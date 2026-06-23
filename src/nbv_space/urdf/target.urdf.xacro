@@ -85,4 +85,32 @@
       </geometry>
     </collision>
   </link>
+
+  <!-- ==================================================================== -->
+  <!-- PosePublisher — required for /model/target/pose to actually publish  -->
+  <!--                                                                       -->
+  <!-- SceneBroadcaster does NOT automatically publish per-model pose       -->
+  <!-- topics; that requires this separate plugin. Without it, the bridge's -->
+  <!-- ROS-side /model/target/pose endpoint exists but nothing ever         -->
+  <!-- publishes to it, so chaser_hcw_dynamics.py's subscription callback   -->
+  <!-- never fires.                                                         -->
+  <!--                                                                       -->
+  <!-- NOTE: publish_model_pose is documented but not actually wired up in  -->
+  <!-- the current implementation (see gazebosim/gz-sim#2690) — setting     -->
+  <!-- publish_nested_model_pose=true is what's actually required to get    -->
+  <!-- the model's own pose published. Both are set here defensively.      -->
+  <!-- ==================================================================== -->
+  <gazebo>
+    <plugin filename="gz-sim-pose-publisher-system" name="gz::sim::systems::PosePublisher">
+      <publish_model_pose>true</publish_model_pose>
+      <publish_nested_model_pose>true</publish_nested_model_pose>
+      <publish_link_pose>false</publish_link_pose>
+      <publish_visual_pose>false</publish_visual_pose>
+      <publish_collision_pose>false</publish_collision_pose>
+      <publish_sensor_pose>false</publish_sensor_pose>
+      <use_pose_vector_msg>false</use_pose_vector_msg>
+      <update_frequency>50</update_frequency>
+    </plugin>
+  </gazebo>
+
 </robot>

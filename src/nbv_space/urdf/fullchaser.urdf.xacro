@@ -7,12 +7,15 @@
     <self_collide>false</self_collide>
   </gazebo>
 
-
   <!-- Include UR description macros -->
   <xacro:include filename="$(find ur_description)/urdf/ur_macro.xacro"/>
 
   <!-- Chaser base -->
   <link name="chaser_base">
+    <inertial>
+      <mass value="50.0"/>
+      <inertia ixx="8.0" ixy="0" ixz="0" iyy="8.0" iyz="0" izz="8.0"/>
+    </inertial>
     <visual>
       <geometry><box size="1 1 0.5"/></geometry>
       <material name="blue"><color rgba="0 0 1 1"/></material>
@@ -20,15 +23,16 @@
     <collision><geometry><box size="1 1 0.5"/></geometry></collision>
   </link>
 
-  <!-- Fix base in world -->
-  <link name="world"/>
-  <joint name="base_to_world" type="fixed">
-    <parent link="world"/>
-    <child link="chaser_base"/>
-    <origin xyz="0 0 0" rpy="0 0 0"/>
-  </joint>
+  <gazebo reference="chaser_base">
+    <kinematic>true</kinematic>
+  </gazebo>
 
-  <!-- UR5e robot -->
+  <!-- chaser_base is the model's root link — no joint needed here.       -->
+  <!-- The model's overall pose (set externally via the HCW dynamics      -->
+  <!-- node's `gz service .../set_pose` calls) IS this link's pose,       -->
+  <!-- matching the pattern used in target.urdf.xacro (body_link_1).      -->
+
+  <!-- UR5e robot, note - macro contains joint for arm to chaser_base -->
   <xacro:ur_robot
     name="ur5e"
     tf_prefix=""
@@ -42,43 +46,116 @@
     <origin xyz="0 0 0.25" rpy="0 0 0"/>
   </xacro:ur_robot>
 
-  <!-- RealSense camera on tool -->
-  <link name="realsense_link">
+  <!-- ==================================================================== -->
+  <!-- Eye-in-hand camera — mounted on tool0                                  -->
+  <!--                                                                        -->
+  <!-- This is the single consolidated camera for this robot. The previous   -->
+  <!-- version had two cameras: a Classic-syntax RealSense on tool0 (broken  -->
+  <!-- under Harmonic) and a separate body-fixed camera on base_link. Since  -->
+  <!-- the eye-in-hand viewpoint generation work needs the camera following  -->
+  <!-- the wrist, this consolidates to ONE rgbd_camera at tool0 using        -->
+  <!-- native Harmonic SDF syntax — no embedded ROS plugin needed, the       -->
+  <!-- sensor publishes directly to a gz topic that ros_gz_bridge picks up.  -->
+  <!-- ==================================================================== -->
+
+  <link name="camera_link">
     <visual>
-      <geometry><box size="0.05 0.05 0.02"/></geometry>
-      <material name="gray"><color rgba="0.7 0.7 0.7 1.0"/></material>
+      <origin xyz="0 0 0" rpy="0 0 0"/>
+      <geometry>
+        <box size="0.04 0.08 0.04"/>
+      </geometry>
+      <material name="dark_grey">
+        <color rgba="0.15 0.15 0.15 1.0"/>
+      </material>
     </visual>
+    <collision>
+      <origin xyz="0 0 0" rpy="0 0 0"/>
+      <geometry>
+        <box size="0.04 0.08 0.04"/>
+      </geometry>
+    </collision>
+    <inertial>
+      <mass value="0.2"/>
+      <inertia ixx="1.1e-4" ixy="0" ixz="0"
+               iyy="1.1e-4" iyz="0"
+               izz="5.0e-5"/>
+    </inertial>
   </link>
 
-  <joint name="realsense_mount" type="fixed">
+  <!-- ROS optical-frame convention: Z forward, X right, Y down -->
+  <link name="camera_optical_frame"/>
+
+  <joint name="camera_joint" type="fixed">
     <parent link="tool0"/>
-    <child link="realsense_link"/>
+    <child  link="camera_link"/>
     <origin xyz="0 0 0.1" rpy="0 0 0"/>
   </joint>
 
-  <!-- Gazebo camera plugin -->
-  <gazebo reference="realsense_link">
-    <sensor type="depth" name="realsense_rgbd">
-      <update_rate>30.0</update_rate>
-      <camera name="realsense_camera">
-        <horizontal_fov>1.047</horizontal_fov>
+  <!-- Rotate from camera body frame to optical frame                      -->
+  <!-- (−90° around X then −90° around Z gives ROS optical convention)    -->
+  <joint name="camera_optical_joint" type="fixed">
+    <parent link="camera_link"/>
+    <child  link="camera_optical_frame"/>
+    <origin xyz="0 0 0" rpy="-1.5707963 0 -1.5707963"/>
+  </joint>
+
+  <gazebo reference="camera_link">
+    <sensor name="chaser_rgbd_camera" type="rgbd_camera">
+      <pose>0 0 0 0 0 0</pose>
+      <camera>
+        <!-- ~70° horizontal FOV — good for close inspection -->
+        <horizontal_fov>1.2217</horizontal_fov>
         <image>
-          <width>640</width>
-          <height>480</height>
+          <width>1280</width>
+          <height>720</height>
           <format>R8G8B8</format>
         </image>
-        <clip><near>0.05</near><far>5.0</far></clip>
+        <clip>
+          <near>0.05</near>
+          <far>200.0</far>
+        </clip>
+        <depth_camera>
+          <clip>
+            <near>0.1</near>
+            <far>10.0</far>
+          </clip>
+        </depth_camera>
+        <distortion>
+          <k1>0.0</k1><k2>0.0</k2><k3>0.0</k3>
+          <p1>0.0</p1><p2>0.0</p2>
+          <center>0.5 0.5</center>
+        </distortion>
       </camera>
-      <plugin name="realsense_camera_plugin" filename="libgazebo_ros_camera.so">
-        <ros>
-          <namespace>/realsense</namespace>
-          <remapping>~/image_raw:=image_raw</remapping>
-          <remapping>~/depth/image_raw:=depth/image_raw</remapping>
-        </ros>
-        <frame_name>realsense_link</frame_name>
-      </plugin>
+      <always_on>true</always_on>
+      <update_rate>15</update_rate>
+      <visualize>true</visualize>
+      <!-- gz topic — must match bridge config in launch file -->
+      <topic>chaser/camera</topic>
+      <!-- TF frame stamped on the published Image/CameraInfo/PointCloud headers -->
+      <gz_frame_id>camera_optical_frame</gz_frame_id>
     </sensor>
   </gazebo>
 
-</robot>
+  <!-- ==================================================================== -->
+  <!-- ros2_control Gazebo plugin — Harmonic/Jazzy syntax                     -->
+  <!--                                                                        -->
+  <!-- Previous version used libgazebo_ros2_control.so (Classic), which      -->
+  <!-- does not exist under Harmonic. This is the correct plugin filename    -->
+  <!-- and class name for gz_ros2_control on Jazzy.                          -->
+  <!--                                                                        -->
+  <!-- NOTE: this plugin spawns its OWN controller_manager internally when   -->
+  <!-- Gazebo loads the model. If your launch file ALSO spawns a separate    -->
+  <!-- controller_manager/ros2_control_node, you'll likely get a conflict    -->
+  <!-- (duplicate controller manager, or spawners attaching to the wrong     -->
+  <!-- one). If you see joint_state_broadcaster/trajectory_controller        -->
+  <!-- spawner failures, remove the manual controller_manager Node from      -->
+  <!-- gazebo.launch.py and keep only the spawner Nodes — they'll attach     -->
+  <!-- to the controller_manager this plugin creates.                        -->
+  <!-- ==================================================================== -->
+  <gazebo>
+    <plugin filename="libgz_ros2_control-system.so" name="gz_ros2_control::GazeboSimROS2ControlPlugin">
+      <parameters>$(find ur_simulation_gazebo)/config/ur_controllers.yaml</parameters>
+    </plugin>
+  </gazebo>
 
+</robot>

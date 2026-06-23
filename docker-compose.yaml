@@ -1,0 +1,42 @@
+services:
+  space_sim:
+    build:
+      context: ${HOME}/sensor_planning
+      dockerfile: gazebo_docker/Dockerfile
+    image: gazebo_sim:latest
+    container_name: gazebo_sim
+
+    network_mode: host
+
+    environment:
+      - DISPLAY=${DISPLAY}
+      - QT_X11_NO_MITSHM=1
+      - RMW_IMPLEMENTATION=rmw_cyclonedds_cpp
+      # Mesa / Intel GPU
+      - LIBGL_ALWAYS_SOFTWARE=0
+      - MESA_GL_VERSION_OVERRIDE=4.6
+
+    volumes:
+      # X11 socket for Gz GUI and RViz
+      - /tmp/.X11-unix:/tmp/.X11-unix:rw
+      # Live workspace: edit on host, build/run inside container
+      - ${HOME}/sensor_planning:/ws:rw
+      # Gz model/resource cache (avoids re-downloading each run)
+      - gz_cache:/root/.gz
+
+    # Intel GPU passthrough via DRI
+    devices:
+      - /dev/dri:/dev/dri
+
+    group_add:
+      - "44"    # video GID on host
+      - "110"   # render GID on host
+
+    stdin_open: true
+    tty: true
+
+    # Prevents ROS2 from crashing on large image messages
+    shm_size: 512m
+
+volumes:
+  gz_cache:
